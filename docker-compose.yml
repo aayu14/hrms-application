@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: hrms_user
+      POSTGRES_PASSWORD: hrms_pass
+      POSTGRES_DB: hrms
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hrms_user -d hrms"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://hrms_user:hrms_pass@db:5432/hrms
+      JWT_SECRET: replace_this_with_a_secure_random_value
+      ADMIN_EMAIL: admin@example.com
+      ADMIN_PASSWORD: changeme
+      PORT: 4000
+      NODE_ENV: development
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "4000:4000"
+    command: sh -c "node run_migrations.js && node index.js"
+    volumes:
+      - ./backend:/usr/src/app
+
+volumes:
+  db_data:
